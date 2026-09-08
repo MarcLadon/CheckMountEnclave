@@ -36,7 +36,7 @@
   <div id="loader"></div>
   <h1>Montures de Défi Dawntrail</h1>
   <div style="margin:8px 0">
-    <button id="startBtn"></button>
+    <button id="startBtn">Lancer recherche</button>
     <span class="muted"></span>
   </div>
 
@@ -167,7 +167,7 @@
           }
         }
 
-        loader.textContent = 'Vérification terminée.';
+       // loader.textContent = 'Vérification terminée.';
       }catch(err){
         loader.innerHTML = `<span class="error">Erreur inattendue: ${escapeHtml(String(err))}</span>`;
         console.error(err);
