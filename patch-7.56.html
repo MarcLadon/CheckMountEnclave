@@ -93,7 +93,7 @@
   </header>
 
   <main class="content">
-    <h1>Patch 7.56</h1>
+    <h1>Patch 7.56 <span id="overall-progress" class="progress-text">Chargement...</span></h1>
     
     <div class="filter-controls">
       <div class="filter-group">
@@ -317,6 +317,12 @@
 
         if (toDisplay.length === 0){
           container.innerHTML = '<p class="muted">Aucun objet trouvé pour le patch 7.56.</p>';
+          // update overall progress to 0 / 0
+          const overallEl = document.getElementById('overall-progress');
+          if (overallEl){
+            overallEl.className = 'progress-text';
+            overallEl.textContent = '0 / 0';
+          }
           return;
         }
 
@@ -324,6 +330,32 @@
         const ownedPromises = toDisplay.map(entry => fetchOwned(entry.cat.apiPath).then(set=>({cat:entry.cat,set})).catch(e=>({cat:entry.cat,set:null})));
         const ownedResults = await Promise.all(ownedPromises);
         const ownedMap = new Map(ownedResults.map(r=>[r.cat.apiPath, r.set]));
+
+        // Compute overall totals across all displayed categories
+        const overallEl = document.getElementById('overall-progress');
+        if (overallEl){
+          let overallTotal = 0;
+          let overallOwned = 0;
+
+          for (const entry of toDisplay){
+            overallTotal += entry.items.length;
+            const set = ownedMap.get(entry.cat.apiPath) ?? null;
+            if (set){
+              overallOwned += entry.items.filter(it => {
+                const id = String(it.id || it.item_id || it.card_id || it.frame_id || it.minion_id || it.achievement_id || (it.uuid || ''));
+                return set.has(id);
+              }).length;
+            }
+          }
+
+          if (overallOwned === overallTotal && overallTotal > 0){
+            overallEl.className = 'progress-text complete';
+            overallEl.textContent = 'Terminé';
+          } else {
+            overallEl.className = 'progress-text';
+            overallEl.textContent = overallOwned + ' / ' + overallTotal;
+          }
+        }
 
         // 4) Render
         container.innerHTML = '';
