@@ -18,7 +18,7 @@
     th, td { padding:8px; border-bottom:1px solid #eee; text-align:left; vertical-align:middle }
     th { background:#f3f4f8; font-weight:600 }
     td.image-cell img { width:80px; height:48px; object-fit:cover; border-radius:6px; background:#f0f0f0 }
-    td.method { color:#444 }
+    td.method, td.sources, td.description { color:#444 }
 
     .muted { color:#666; font-size:0.95rem }
     .status-yes { color:#1f9d55; font-weight:700 }
@@ -38,7 +38,7 @@
 
   <main class="content">
     <h1>Patch 7.56</h1>
-    <p class="note">Listes d'objets ajoutés au patch 7.56. Colonne "Méthode d'obtention" laissée vide pour que vous puissiez la remplir.</p>
+    <p class="note">Listes d'objets ajoutés au patch 7.56. Les colonnes "Sources" sont remplies automatiquement depuis l'API (champ sources -> text).</p>
     <p class="note">Possession vérifiée pour le personnage "Ladon" (ID: 26361333). Si la vérification échoue pour une catégorie, la colonne affichera « Inconnu ».</p>
 
     <div id="categories"></div>
@@ -110,6 +110,19 @@
         }
       }
 
+      function extractSourcesText(item){
+        if (!item) return '';
+        const s = item.sources || item.source || item.sources_text || item.source_text;
+        if (!s) return '';
+        if (Array.isArray(s)){
+          // elements may be strings or objects with text
+          return s.map(x => (typeof x === 'string' ? x : (x && (x.text || x.name || '')) )).filter(Boolean).join(' • ');
+        }
+        if (typeof s === 'string') return s;
+        if (typeof s === 'object') return String(s.text || s.name || '');
+        return '';
+      }
+
       function createTableFor(category, items, ownedSet){
         const section = document.createElement('section');
         section.className = 'category';
@@ -119,7 +132,14 @@
 
         const table = document.createElement('table');
         const thead = document.createElement('thead');
-        thead.innerHTML = '<tr><th>Nom</th><th>Image</th><th>Méthode d\'obtention</th><th>Possédé</th></tr>';
+
+        const showDescription = category.apiPath === 'achievements';
+
+        // Build header
+        let headerHtml = '<tr><th>Nom</th><th>Image</th>';
+        if (showDescription) headerHtml += '<th>Description</th>';
+        headerHtml += '<th>Sources</th><th>Possédé</th></tr>';
+        thead.innerHTML = headerHtml;
         table.appendChild(thead);
 
         const tbody = document.createElement('tbody');
@@ -145,12 +165,19 @@
           }
           tr.appendChild(tdImg);
 
-          const tdMethod = document.createElement('td');
-          tdMethod.className = 'method';
-          tdMethod.contentEditable = 'true';
-          tdMethod.dataset.itemId = id;
-          tdMethod.textContent = '';
-          tr.appendChild(tdMethod);
+          if (showDescription){
+            const tdDesc = document.createElement('td');
+            const desc = it.description || it.summary || it.tooltip || it.excerpt || '';
+            tdDesc.className = 'description';
+            tdDesc.textContent = desc;
+            tr.appendChild(tdDesc);
+          }
+
+          const tdSources = document.createElement('td');
+          tdSources.className = 'sources';
+          const sourcesText = extractSourcesText(it);
+          tdSources.textContent = sourcesText || '';
+          tr.appendChild(tdSources);
 
           const tdOwned = document.createElement('td');
           if (ownedSet === null){
