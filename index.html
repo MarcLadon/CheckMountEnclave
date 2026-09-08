@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mes 8 montures FFXIV</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 20px; background:#f6f7fb; color:#111; }
+    h1 { margin-bottom: 12px; }
+    #grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 12px; }
+    .card { background:#fff; border-radius:8px; padding:10px; box-shadow:0 1px 6px rgba(10,10,20,0.06); text-align:center; }
+    .card img { width:100%; height:140px; object-fit:cover; border-radius:6px; background:linear-gradient(90deg,#eee,#ddd); }
+    .name { font-weight:600; margin-top:8px; }
+    .source { font-size:0.9rem; color:#555; margin-top:6px; }
+    .error { color:crimson; }
+    #loader { margin:12px 0; }
+  </style>
+</head>
+<body>
+  <h1>Mes 8 montures</h1>
+  <p>Remplace la liste dans le script par tes 8 identifiants/slugs.</p>
+  <div id="loader">Chargement…</div>
+  <div id="grid" aria-live="polite"></div>
+
+  <script>
+    // <-- LISTE À ADAPTER : 8 identifiants ou slugs
+    const mountsList = [
+      "345",
+      "346",
+      "363",
+      "389",
+      "407",
+      "422",
+      "444"
+    ];
+
+    // Si tu as des IDs numériques, mets-les ici à la place des slugs.
+    // Fonction qui récupère une monture depuis l'API publique
+    async function fetchMount(idOrSlug) {
+      // Ajuste l'URL selon l'API réelle de FFXIVCollect.
+      // Exemple : `https://ffxivcollect.com/api/mounts/${idOrSlug}`
+      // Si tu utilises le proxy Node (server.js plus bas), utilise `/api/mounts/${idOrSlug}`
+      const apiUrl = `https://ffxivcollect.com/api/mounts/${encodeURIComponent(idOrSlug)}`;
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    // Rendu d'une carte monture
+    function renderMount(m) {
+      // Attends que ton endpoint renvoie au moins name et image_url (ou image)
+      const imageUrl = m.image || m.image_url || m.icon || "";
+      const name = m.name || m.title || "Nom inconnu";
+      const source = m.obtained_from || m.source || m.description || "";
+      return `
+        <div class="card">
+          <img src="${imageUrl}" alt="${escapeHtml(name)}" onerror="this.src='https://via.placeholder.com/320x180?text=No+image'">
+          <div class="name">${escapeHtml(name)}</div>
+          <div class="source">${escapeHtml(source)}</div>
+        </div>
+      `;
+    }
+
+    // Simple échappement HTML pour sécurité
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    async function loadMounts() {
+      const grid = document.getElementById('grid');
+      const loader = document.getElementById('loader');
+      grid.innerHTML = '';
+      loader.textContent = 'Chargement des montures…';
+
+      // Lance toutes les requêtes en parallèle
+      const promises = mountsList.map(id => fetchMount(id).then(
+        data => ({ ok: true, data }),
+        err => ({ ok: false, err })
+      ));
+
+      const results = await Promise.all(promises);
+
+      let anyError = false;
+      for (const r of results) {
+        if (r.ok) {
+          const html = renderMount(r.data);
+          grid.insertAdjacentHTML('beforeend', html);
+        } else {
+          anyError = true;
+          grid.insertAdjacentHTML('beforeend',
+            `<div class="card error"><div class="name">Erreur</div><div class="source">${escapeHtml(String(r.err))}</div></div>`
+          );
+        }
+      }
+
+      loader.textContent = anyError ? 'Certaines montures n’ont pas pu être chargées.' : 'Toutes les montures ont été chargées.';
+    }
+
+    loadMounts();
+  </script>
+</body>
+</html>
