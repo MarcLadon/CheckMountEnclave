@@ -12,6 +12,20 @@
     nav.primary a.active { background:#1f9d55; color:#fff; }
     nav.primary a:hover { background:#eef6f0; }
     .content { background:#fff; border-radius:8px; padding:16px; }
+
+    .category { margin:16px 0; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; }
+    th, td { padding:8px; border-bottom:1px solid #eee; text-align:left; vertical-align:middle }
+    th { background:#f3f4f8; font-weight:600 }
+    td.image-cell img { width:80px; height:48px; object-fit:cover; border-radius:6px; background:#f0f0f0 }
+    td.method { color:#444 }
+
+    .muted { color:#666; font-size:0.95rem }
+    .status-yes { color:#1f9d55; font-weight:700 }
+    .status-no { color:#d64550; font-weight:700 }
+    .status-unk { color:#666 }
+
+    .note { font-size:0.95rem; color:#444; margin-bottom:12px }
   </style>
 </head>
 <body>
@@ -24,7 +38,11 @@
 
   <main class="content">
     <h1>Patch 7.56</h1>
-    <p>Page dédiée au patch 7.56 — contenu à ajouter.</p>
+    <p class="note">Listes d'objets ajoutés au patch 7.56. Colonne "Méthode d'obtention" laissée vide pour que vous puissiez la remplir.</p>
+    <p class="note">Possession vérifiée pour le personnage "Ladon" (ID: 26361333). Si la vérification échoue pour une catégorie, la colonne affichera « Inconnu ».</p>
+
+    <div id="categories"></div>
+
     <p>Retour : <a href="index.html">Accueil</a></p>
   </main>
 
@@ -39,6 +57,172 @@
           if (href === page || (href === 'patch-7.56.html' && page === 'patch-7.56.html')) a.classList.add('active');
         });
       }catch(e){/* ignore */}
+    })();
+  </script>
+
+  <script>
+    (function(){
+      const CHAR_ID = '26361333'; // Ladon
+      const LANGUAGE_PARAM = '?language=fr';
+
+      const categories = [
+        { key: 'achievements', label: 'Achievements', apiPath: 'achievements' },
+        { key: 'mounts', label: 'Montures', apiPath: 'mounts' },
+        { key: 'bardings', label: 'Barde', apiPath: 'bardings' },
+        { key: 'hairstyles', label: 'Coupe de cheveux', apiPath: 'hairstyles' },
+        { key: 'fashions', label: 'Accessoires', apiPath: 'fashions' },
+        { key: 'emotes', label: 'Emotes', apiPath: 'emotes' },
+        { key: 'facewear', label: 'Accessoires 2', apiPath: 'facewear' },
+        { key: 'orchestrions', label: 'Orchestrions', apiPath: 'orchestrions' },
+        { key: 'minions', label: 'Mascottes', apiPath: 'minions' },
+        { key: 'outfits', label: 'Ensemble', apiPath: 'outfits' },
+        { key: 'armoires', label: 'Bahut', apiPath: 'armoires' },
+        { key: 'triad/cards', label: 'Cartes', apiPath: 'triad/cards' },
+        { key: 'frames', label: 'Portraits', apiPath: 'frames' }
+      ];
+
+      const container = document.getElementById('categories');
+
+      const SVG_YES = '<span class="status-yes">Oui</span>';
+      const SVG_NO = '<span class="status-no">Non</span>';
+      const SVG_UNK = '<span class="status-unk">Inconnu</span>';
+
+      async function fetchList(apiPath){
+        const url = 'https://ffxivcollect.com/api/' + apiPath + LANGUAGE_PARAM;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(apiPath + ' -> HTTP ' + res.status);
+        return await res.json();
+      }
+
+      async function fetchOwned(apiPath){
+        // Attempt characters/{id}/{apiPath}/owned
+        const url = 'https://ffxivcollect.com/api/characters/' + encodeURIComponent(CHAR_ID) + '/' + apiPath + '/owned';
+        try{
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('owned ' + apiPath + ' -> HTTP ' + res.status);
+          const data = await res.json();
+          if (!Array.isArray(data)) return null;
+          // data may be array of ids or array of objects with id
+          return new Set(data.map(item => String(item && (item.id || item) )));
+        }catch(e){
+          console.warn('Owned check failed for', apiPath, e);
+          return null;
+        }
+      }
+
+      function createTableFor(category, items, ownedSet){
+        const section = document.createElement('section');
+        section.className = 'category';
+        const title = document.createElement('h2');
+        title.textContent = category.label + ' (' + items.length + ')';
+        section.appendChild(title);
+
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        thead.innerHTML = '<tr><th>Nom</th><th>Image</th><th>Méthode d\'obtention</th><th>Possédé</th></tr>';
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        for (const it of items){
+          const id = String(it.id || it.item_id || it.card_id || it.frame_id || it.minion_id || it.achievement_id || (it.uuid || ''));
+          const tr = document.createElement('tr');
+
+          const tdName = document.createElement('td');
+          tdName.textContent = it.name || it.title || '';
+          tr.appendChild(tdName);
+
+          const tdImg = document.createElement('td');
+          tdImg.className = 'image-cell';
+          const imgSrc = it.image || it.image_url || it.icon || '';
+          if (imgSrc){
+            const img = document.createElement('img');
+            img.src = imgSrc;
+            img.alt = it.name || '';
+            img.loading = 'lazy';
+            tdImg.appendChild(img);
+          } else {
+            tdImg.textContent = '';
+          }
+          tr.appendChild(tdImg);
+
+          const tdMethod = document.createElement('td');
+          tdMethod.className = 'method';
+          tdMethod.contentEditable = 'true';
+          tdMethod.dataset.itemId = id;
+          tdMethod.textContent = '';
+          tr.appendChild(tdMethod);
+
+          const tdOwned = document.createElement('td');
+          if (ownedSet === null){
+            tdOwned.innerHTML = SVG_UNK;
+          } else {
+            if (ownedSet.has(id)) tdOwned.innerHTML = SVG_YES; else tdOwned.innerHTML = SVG_NO;
+          }
+          tr.appendChild(tdOwned);
+
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        section.appendChild(table);
+
+        return section;
+      }
+
+      async function buildAll(){
+        // 1) Fetch all lists in parallel
+        const listPromises = categories.map(cat => fetchList(cat.apiPath).then(data=>({ok:true,cat,data})).catch(e=>({ok:false,cat,e})));
+        const lists = await Promise.all(listPromises);
+
+        // 2) For each category, filter by patch === '7.56' (or startsWith '7.56')
+        const toDisplay = [];
+
+        for (const res of lists){
+          if (!res.ok){
+            console.warn('Failed to fetch', res.cat.apiPath, res.e);
+            continue;
+          }
+          let items = res.data;
+          if (!Array.isArray(items)){
+            // Some endpoints may wrap results in an object; try to find array
+            const maybe = Object.values(items).find(v=>Array.isArray(v));
+            if (maybe) items = maybe; else items = [];
+          }
+
+          // filter by patch
+          const filtered = items.filter(it => {
+            if (!it) return false;
+            if (!it.patch && !it.patch_id && !it.patch_number) return false;
+            const p = String(it.patch || it.patch_number || it.patch_id || '');
+            return p === '7.56' || p.startsWith('7.56');
+          });
+
+          if (filtered.length > 0){
+            toDisplay.push({ cat: res.cat, items: filtered });
+          }
+        }
+
+        if (toDisplay.length === 0){
+          container.innerHTML = '<p class="muted">Aucun objet trouvé pour le patch 7.56.</p>';
+          return;
+        }
+
+        // 3) For each category to display, attempt owned check (in parallel)
+        const ownedPromises = toDisplay.map(entry => fetchOwned(entry.cat.apiPath).then(set=>({cat:entry.cat,set})).catch(e=>({cat:entry.cat,set:null})));
+        const ownedResults = await Promise.all(ownedPromises);
+        const ownedMap = new Map(ownedResults.map(r=>[r.cat.apiPath, r.set]));
+
+        // 4) Render
+        container.innerHTML = '';
+        for (const entry of toDisplay){
+          const set = ownedMap.get(entry.cat.apiPath) ?? null;
+          const section = createTableFor(entry.cat, entry.items, set);
+          container.appendChild(section);
+        }
+      }
+
+      // Start building on load
+      document.addEventListener('DOMContentLoaded', buildAll);
+
     })();
   </script>
 </body>
