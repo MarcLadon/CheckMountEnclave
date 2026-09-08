@@ -26,6 +26,14 @@
     .status-unk { color:#666 }
 
     .note { font-size:0.95rem; color:#444; margin-bottom:12px }
+
+    .filter-controls { margin: 16px 0; padding: 12px; background: #f9f9f9; border-radius: 6px; }
+    .filter-group { display: flex; gap: 16px; align-items: center; }
+    .filter-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; }
+    .filter-group input[type="radio"] { cursor: pointer; }
+
+    .category.hidden { display: none; }
+    .category tbody tr.hidden { display: none; }
   </style>
 </head>
 <body>
@@ -38,6 +46,19 @@
 
   <main class="content">
     <h1>Patch 7.56</h1>
+    
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label>
+          <input type="radio" name="owned-filter" value="all" checked />
+          Afficher tous les éléments
+        </label>
+        <label>
+          <input type="radio" name="owned-filter" value="owned" />
+          Masquer les éléments possédés
+        </label>
+      </div>
+    </div>
    
     <div id="categories"></div>
 
@@ -124,6 +145,7 @@
       function createTableFor(category, items, ownedSet){
         const section = document.createElement('section');
         section.className = 'category';
+        section.setAttribute('data-api-path', category.apiPath);
         const title = document.createElement('h2');
         title.textContent = category.label + ' (' + items.length + ')';
         section.appendChild(title);
@@ -132,11 +154,13 @@
         const thead = document.createElement('thead');
 
         const showDescription = category.apiPath === 'achievements';
+        const hideSourcesForAchievements = category.apiPath === 'achievements';
 
         // Build header
         let headerHtml = '<tr><th>Nom</th><th>Image</th>';
         if (showDescription) headerHtml += '<th>Description</th>';
-        headerHtml += '<th>Sources</th><th>Possédé</th></tr>';
+        if (!hideSourcesForAchievements) headerHtml += '<th>Sources</th>';
+        headerHtml += '<th>Possédé</th></tr>';
         thead.innerHTML = headerHtml;
         table.appendChild(thead);
 
@@ -144,6 +168,8 @@
         for (const it of items){
           const id = String(it.id || it.item_id || it.card_id || it.frame_id || it.minion_id || it.achievement_id || (it.uuid || ''));
           const tr = document.createElement('tr');
+          const isOwned = ownedSet && ownedSet.has(id);
+          tr.setAttribute('data-owned', isOwned ? 'true' : 'false');
 
           const tdName = document.createElement('td');
           tdName.textContent = it.name || it.title || '';
@@ -171,11 +197,13 @@
             tr.appendChild(tdDesc);
           }
 
-          const tdSources = document.createElement('td');
-          tdSources.className = 'sources';
-          const sourcesText = extractSourcesText(it);
-          tdSources.textContent = sourcesText || '';
-          tr.appendChild(tdSources);
+          if (!hideSourcesForAchievements){
+            const tdSources = document.createElement('td');
+            tdSources.className = 'sources';
+            const sourcesText = extractSourcesText(it);
+            tdSources.textContent = sourcesText || '';
+            tr.appendChild(tdSources);
+          }
 
           const tdOwned = document.createElement('td');
           if (ownedSet === null){
@@ -243,6 +271,56 @@
           const section = createTableFor(entry.cat, entry.items, set);
           container.appendChild(section);
         }
+
+        // 5) Setup filter controls
+        setupFilterControls();
+      }
+
+      function setupFilterControls(){
+        const filterRadios = document.querySelectorAll('input[name="owned-filter"]');
+        
+        filterRadios.forEach(radio => {
+          radio.addEventListener('change', applyFilter);
+        });
+      }
+
+      function applyFilter(){
+        const filterValue = document.querySelector('input[name="owned-filter"]:checked').value;
+        const sections = document.querySelectorAll('.category');
+
+        sections.forEach(section => {
+          const tbody = section.querySelector('tbody');
+          if (!tbody) return;
+
+          const rows = tbody.querySelectorAll('tr');
+          let visibleCount = 0;
+
+          if (filterValue === 'all'){
+            // Show all rows
+            rows.forEach(row => {
+              row.classList.remove('hidden');
+              visibleCount++;
+            });
+          } else if (filterValue === 'owned'){
+            // Hide rows where owned is true
+            rows.forEach(row => {
+              const isOwned = row.getAttribute('data-owned') === 'true';
+              if (isOwned){
+                row.classList.add('hidden');
+              } else {
+                row.classList.remove('hidden');
+                visibleCount++;
+              }
+            });
+          }
+
+          // Hide section if no visible rows
+          if (visibleCount === 0){
+            section.classList.add('hidden');
+          } else {
+            section.classList.remove('hidden');
+          }
+        });
       }
 
       // Start building on load
