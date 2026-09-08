@@ -23,19 +23,21 @@
     .ok { color: #1f9d55; }
     .no { color: #d64550; }
 
-    #loader { margin:12px 0; }
+    #loader { margin:12px 0; display:none; }
     .muted { color:#666; font-size:0.9rem }
     .error { color:crimson }
 
     /* Responsive: make table horizontally scrollable on small screens */
     .table-wrap { overflow:auto; border-radius:8px; }
+    
+    #controlPanel { display:none; }
   </style>
 </head>
 <body>
   <p class="lead"></p>
   <div id="loader"></div>
   <h1>Montures de Défi Dawntrail</h1>
-  <div style="margin:8px 0">
+  <div id="controlPanel" style="margin:8px 0">
     <button id="startBtn">Lancer recherche</button>
     <span class="muted"></span>
   </div>
@@ -128,6 +130,7 @@
     document.getElementById('startBtn').addEventListener('click', async ()=>{
       const loader = document.getElementById('loader');
       loader.textContent = 'Chargement des données des montures…';
+      loader.style.display = 'block';
       const gridHead = document.getElementById('tableHead');
       const gridBody = document.getElementById('tableBody');
       gridHead.innerHTML = '';
@@ -140,7 +143,7 @@
         const mounts = mountsResults.map((r, idx)=> r.ok ? r.d : { id: mountsList[idx], name: mountsList[idx], image: '' });
 
         buildHeader(mounts);
-        loader.textContent = 'Vérification des personnages (récupération des collections owned)...';
+        loader.textContent = '';
 
         // 2) Pour chaque personnage, affiche placeholder
         for (const ch of charactersList){
@@ -167,9 +170,10 @@
           }
         }
 
-       // loader.textContent = 'Vérification terminée.';
+        loader.style.display = 'none';
       }catch(err){
         loader.innerHTML = `<span class="error">Erreur inattendue: ${escapeHtml(String(err))}</span>`;
+        loader.style.display = 'block';
         console.error(err);
       }
 
