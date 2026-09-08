@@ -79,6 +79,9 @@
 
     .category.hidden { display: none; }
     .category tbody tr.hidden { display: none; }
+
+    .progress-text { color: #666; font-size: 0.9rem; font-weight: 400; }
+    .progress-text.complete { color: #1f9d55; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -190,8 +193,22 @@
         const section = document.createElement('section');
         section.className = 'category';
         section.setAttribute('data-api-path', category.apiPath);
+        
         const title = document.createElement('h2');
-        title.textContent = category.label + ' (' + items.length + ')';
+        const totalItems = items.length;
+        const ownedCount = ownedSet ? items.filter(it => {
+          const id = String(it.id || it.item_id || it.card_id || it.frame_id || it.minion_id || it.achievement_id || (it.uuid || ''));
+          return ownedSet.has(id);
+        }).length : 0;
+        
+        let progressText = '';
+        if (ownedCount === totalItems && totalItems > 0) {
+          progressText = 'Terminé';
+        } else {
+          progressText = ownedCount + ' / ' + totalItems;
+        }
+        
+        title.innerHTML = category.label + ' (<span class="progress-text' + (ownedCount === totalItems && totalItems > 0 ? ' complete' : '') + '">' + progressText + '</span>)';
         section.appendChild(title);
 
         const table = document.createElement('table');
