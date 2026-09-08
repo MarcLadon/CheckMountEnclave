@@ -94,15 +94,15 @@
     }
 
     // SVG icons
-    const SVG_OK = '<svg class="icon ok" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" [...]'
-    const SVG_NO = '<svg class="icon no" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="ro[...]'
+    const SVG_OK = '<svg class="icon ok" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const SVG_NO = '<svg class="icon no" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
     // --- Rendering ---
     function buildHeader(mounts){
       const thead = document.getElementById('tableHead');
       thead.innerHTML = '';
       const tr = document.createElement('tr');
-      tr.innerHTML = '<th></th>' + mounts.map(m=>`<th class="mount-col"><img class="mount-thumb" src="${escapeHtml(m.image||m.image_url||m.icon||'')}" alt="${escapeHtml(m.name||m.title||'')}"><di[...]`).join('')
+      tr.innerHTML = '<th></th>' + mounts.map(m=>`<th class="mount-col"><img class="mount-thumb" src="${escapeHtml(m.image||m.image_url||m.icon||'')}" alt="${escapeHtml(m.name||m.title||'')}"><div class="small">${escapeHtml(m.name||m.title||'')}</div></th>`).join('');
       thead.appendChild(tr);
     }
 
