@@ -3,27 +3,53 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mes 8 montures FFXIV</title>
+  <title>Vérification des montures — FFXIV</title>
   <style>
     body { font-family: system-ui, Arial; padding: 20px; background:#f6f7fb; color:#111; }
-    h1 { margin-bottom: 12px; }
-    #grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 12px; }
-    .card { background:#fff; border-radius:8px; padding:10px; box-shadow:0 1px 6px rgba(10,10,20,0.06); text-align:center; }
-    .card img { width:100%; height:140px; object-fit:cover; border-radius:6px; background:linear-gradient(90deg,#eee,#ddd); }
-    .name { font-weight:600; margin-top:8px; }
-    .source { font-size:0.9rem; color:#555; margin-top:6px; }
-    .error { color:crimson; }
+    h1 { margin-bottom: 6px; }
+    p.lead { margin-top:0; color:#444 }
+
+    table { width:100%; border-collapse: collapse; margin-top:12px; background:#fff; border-radius:8px; overflow:hidden; }
+    thead th { background:linear-gradient(180deg,#f3f4f8,#eef0f6); padding:10px; text-align:center; font-weight:600; border-bottom:1px solid #e6e9f0; }
+    tbody td { padding:8px; border-bottom:1px solid #f2f4fa; text-align:center; vertical-align:middle; }
+    tbody tr:first-child td { border-top: none; }
+
+    td.character { text-align:left; font-weight:600; padding-left:12px; width:240px; }
+    .mount-col { width:120px; }
+    .mount-thumb { width:80px; height:50px; object-fit:cover; border-radius:6px; display:block; margin:6px auto; background:#eee }
+    .small { font-size:0.85rem; color:#555 }
+
+    .icon { width:20px; height:20px; display:inline-block; vertical-align:middle }
+    .ok { color: #1f9d55; }
+    .no { color: #d64550; }
+
     #loader { margin:12px 0; }
+    .muted { color:#666; font-size:0.9rem }
+    .error { color:crimson }
+
+    /* Responsive: make table horizontally scrollable on small screens */
+    .table-wrap { overflow:auto; border-radius:8px; }
   </style>
 </head>
 <body>
-  <h1>Mes 8 montures</h1>
-  <p>Remplace la liste dans le script par tes 8 identifiants/slugs.</p>
-  <div id="loader">Chargement…</div>
-  <div id="grid" aria-live="polite"></div>
+  <h1>Vérification des montures pour plusieurs personnages</h1>
+  <p class="lead">La grille compare 8 personnages aux 8 montures sélectionnées. Une coche verte signifie que le personnage possède la monture, une croix rouge qu'il ne la possède pas.</p>
+  <div id="loader">Prêt — cliquez sur « Lancer la vérification ».</div>
+  <div style="margin:8px 0">
+    <button id="startBtn">Lancer la vérification</button>
+    <span class="muted">(Remplacez les tableaux mountsList et charactersList dans le script par vos valeurs réelles.)</span>
+  </div>
+
+  <div class="table-wrap">
+    <table id="resultTable" aria-live="polite">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
 
   <script>
-    // <-- LISTE À ADAPTER : 8 identifiants ou slugs
+    // --- CONFIGURATION : remplace ces listes par les 8 montures et les 8 personnages réels ---
+    // Montures : identifiants (ou slugs) tels qu'utilisés par l'API FFXIVCollect
     const mountsList = [
       "345",
       "346",
@@ -32,77 +58,154 @@
       "407",
       "422",
       "444",
-      "420"
+      "445" // Remplacez par le 8ème ID réel
     ];
 
-    // Si tu as des IDs numériques, mets-les ici à la place des slugs.
-    // Fonction qui récupère une monture depuis l'API publique
-    async function fetchMount(idOrSlug) {
-      // Ajuste l'URL selon l'API réelle de FFXIVCollect.
-      // Exemple : `https://ffxivcollect.com/api/mounts/${idOrSlug}`
-      // Si tu utilises le proxy Node (server.js plus bas), utilise `/api/mounts/${idOrSlug}`
+    // Personnages : fournissez au minimum { name, id } où id est utilisable par l'API (ou un slug)
+    const charactersList = [
+      { name: "Personnage 1", id: "char-1" },
+      { name: "Personnage 2", id: "char-2" },
+      { name: "Personnage 3", id: "char-3" },
+      { name: "Personnage 4", id: "char-4" },
+      { name: "Personnage 5", id: "char-5" },
+      { name: "Personnage 6", id: "char-6" },
+      { name: "Personnage 7", id: "char-7" },
+      { name: "Personnage 8", id: "char-8" }
+    ];
+
+    // --- Helpers ---
+    function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+    function checkResponseOk(res){ if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); }
+
+    async function fetchMount(idOrSlug){
       const apiUrl = `https://ffxivcollect.com/api/mounts/${encodeURIComponent(idOrSlug)}`;
       const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`mount ${idOrSlug} -> HTTP ${res.status}`);
       return await res.json();
     }
 
-    // Rendu d'une carte monture
-    function renderMount(m) {
-      // Attends que ton endpoint renvoie au moins name et image_url (ou image)
-      const imageUrl = m.image || m.image_url || m.icon || "";
-      const name = m.name || m.title || "Nom inconnu";
-      const source = m.obtained_from || m.source || m.description || "";
-      return `
-        <div class="card">
-          <img src="${imageUrl}" alt="${escapeHtml(name)}" onerror="this.src='https://via.placeholder.com/320x180?text=No+image'">
-          <div class="name">${escapeHtml(name)}</div>
-          <div class="source">${escapeHtml(source)}</div>
-        </div>
-      `;
+    async function fetchCharacter(idOrSlug){
+      // IMPORTANT : ajuster si l'API réelle a un chemin différent ou si CORS bloque.
+      const apiUrl = `https://ffxivcollect.com/api/characters/${encodeURIComponent(idOrSlug)}`;
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error(`character ${idOrSlug} -> HTTP ${res.status}`);
+      return await res.json();
     }
 
-    // Simple échappement HTML pour sécurité
-    function escapeHtml(s) {
-      return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    async function loadMounts() {
-      const grid = document.getElementById('grid');
-      const loader = document.getElementById('loader');
-      grid.innerHTML = '';
-      loader.textContent = 'Chargement des montures…';
-
-      // Lance toutes les requêtes en parallèle
-      const promises = mountsList.map(id => fetchMount(id).then(
-        data => ({ ok: true, data }),
-        err => ({ ok: false, err })
-      ));
-
-      const results = await Promise.all(promises);
-
-      let anyError = false;
-      for (const r of results) {
-        if (r.ok) {
-          const html = renderMount(r.data);
-          grid.insertAdjacentHTML('beforeend', html);
-        } else {
-          anyError = true;
-          grid.insertAdjacentHTML('beforeend',
-            `<div class="card error"><div class="name">Erreur</div><div class="source">${escapeHtml(String(r.err))}</div></div>`
-          );
+    function ownedMountIdsFromCharacterJson(obj){
+      // Essaye de trouver une liste d'IDs/slugs de montures dans la réponse d'un personnage
+      // Explore plusieurs chemins communs
+      if (!obj) return [];
+      const candidates = [];
+      if (Array.isArray(obj.mounts)) candidates.push(...obj.mounts);
+      if (Array.isArray(obj.owned_mounts)) candidates.push(...obj.owned_mounts);
+      if (Array.isArray(obj.mount_ids)) candidates.push(...obj.mount_ids);
+      if (Array.isArray(obj.collection) && obj.collection.length){ // parfois une collection globale
+        obj.collection.forEach(c=>{ if (c.type === 'mount' && Array.isArray(c.items)) candidates.push(...c.items); });
+      }
+      // Parcours clé-values pour trouver tableau contenant monture
+      Object.keys(obj).forEach(k=>{
+        const v = obj[k];
+        if (Array.isArray(v) && v.length && (String(k).toLowerCase().includes('mount') || v.every(x=>typeof x === 'string' || typeof x === 'number'))) {
+          candidates.push(...v);
         }
+      });
+
+      // Normalise en chaînes et unique
+      return Array.from(new Set(candidates.map(x=>String(x))));
+    }
+
+    // SVG icons
+    const SVG_OK = '<svg class="icon ok" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const SVG_NO = '<svg class="icon no" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    // --- Rendering ---
+    function buildHeader(mounts){
+      const thead = document.getElementById('tableHead');
+      thead.innerHTML = '';
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<th>Personnage</th>' + mounts.map(m=>`<th class="mount-col"><img class="mount-thumb" src="${escapeHtml(m.image||m.image_url||m.icon||'')}" alt="${escapeHtml(m.name||m.title||'')}"><div class="small">${escapeHtml(m.name||m.title||m.slug||m.id||'')}</div></th>`).join('');
+      thead.appendChild(tr);
+    }
+
+    function buildRow(character, ownedSet){
+      const tr = document.createElement('tr');
+      const first = document.createElement('td');
+      first.className = 'character';
+      first.textContent = character.name || character.id || '—';
+      tr.appendChild(first);
+
+      for (const mId of mountsList){
+        const td = document.createElement('td');
+        td.setAttribute('data-mount', mId);
+        // Compare string forms
+        const has = ownedSet.has(String(mId)) || ownedSet.has(String(parseInt(mId))) || ownedSet.has(String(mId).toLowerCase());
+        td.innerHTML = has ? `${SVG_OK}` : `${SVG_NO}`;
+        td.title = has ? 'Possédé' : 'Non possédé';
+        tr.appendChild(td);
+      }
+      return tr;
+    }
+
+    // Main flow when user clicks
+    document.getElementById('startBtn').addEventListener('click', async ()=>{
+      const loader = document.getElementById('loader');
+      loader.textContent = 'Chargement des données des montures…';
+      const gridHead = document.getElementById('tableHead');
+      const gridBody = document.getElementById('tableBody');
+      gridHead.innerHTML = '';
+      gridBody.innerHTML = '';
+
+      try{
+        // 1) Récupère les informations des montures (image + nom) en parallèle
+        const mountPromises = mountsList.map(id => fetchMount(id).then(d=>({ok:true,d})).catch(e=>({ok:false,e}))); 
+        const mountsResults = await Promise.all(mountPromises);
+        const mounts = mountsResults.map((r, idx)=> r.ok ? r.d : { id: mountsList[idx], name: mountsList[idx], image: '' });
+
+        buildHeader(mounts);
+        loader.textContent = 'Vérification des personnages (récupération des collections)...';
+
+        // 2) Pour chaque personnage, récupère sa collection et construit la ligne
+        for (const ch of charactersList){
+          const rowPlaceholder = document.createElement('tr');
+          rowPlaceholder.innerHTML = `<td class="character">${escapeHtml(ch.name||ch.id)}</td><td colspan="${mountsList.length}" class="muted">Chargement...</td>`;
+          gridBody.appendChild(rowPlaceholder);
+        }
+
+        // Fetch all characters in parallel (but we will write rows in order)
+        const characterPromises = charactersList.map(c => fetchCharacter(c.id).then(d=>({ok:true,d,c})).catch(e=>({ok:false,e,c}))); 
+        const charactersResults = await Promise.all(characterPromises);
+
+        // Clear body and append final rows
+        gridBody.innerHTML = '';
+        for (const res of charactersResults){
+          if (res.ok){
+            const owned = ownedMountIdsFromCharacterJson(res.d);
+            const ownedSet = new Set(owned.map(x=>String(x)));
+            const tr = buildRow(res.c, ownedSet);
+            gridBody.appendChild(tr);
+          } else {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="character">${escapeHtml(res.c.name||res.c.id)}</td><td colspan="${mountsList.length}" class="error">Erreur: ${escapeHtml(String(res.e))}</td>`;
+            gridBody.appendChild(tr);
+          }
+        }
+
+        loader.textContent = 'Vérification terminée.';
+      }catch(err){
+        loader.innerHTML = `<span class="error">Erreur inattendue: ${escapeHtml(String(err))}</span>`;
+        console.error(err);
       }
 
-      loader.textContent = anyError ? 'Certaines montures n’ont pas pu être chargées.' : 'Toutes les montures ont été chargées.';
-    }
+      // Note sur le CORS
+      const note = document.createElement('div');
+      note.className = 'muted';
+      note.style.marginTop = '8px';
+      note.innerHTML = 'Remarque: si les appels `fetch` vers ffxivcollect.com sont bloqués par CORS, exécutez un petit proxy côté serveur et modifiez les URLs de fetch vers `/api/mounts/:id` et `/api/characters/:id`.';
+      document.body.appendChild(note);
+    });
 
-    loadMounts();
   </script>
 </body>
 </html>
