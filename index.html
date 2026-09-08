@@ -31,9 +31,23 @@
     .table-wrap { overflow:auto; border-radius:8px; }
     
     #controlPanel { display:none; }
+
+    /* Navigation */
+    header.site-nav { display:flex; align-items:center; margin-bottom:16px; }
+    nav.primary { display:flex; gap:8px; }
+    nav.primary a { text-decoration:none; color:#111; padding:8px 12px; border-radius:6px; font-weight:600 }
+    nav.primary a.active { background:#1f9d55; color:#fff; }
+    nav.primary a:hover { background:#eef6f0; }
   </style>
 </head>
 <body>
+  <header class="site-nav" role="banner">
+    <nav class="primary" aria-label="Navigation principale">
+      <a href="index.html" class="nav-link" data-page="index">Accueil</a>
+      <a href="patch-7.56.html" class="nav-link" data-page="patch-7.56">Patch 7.56</a>
+    </nav>
+  </header>
+
   <p class="lead"></p>
   <div id="loader"></div>
   <h1>Montures de Défi Dawntrail</h1>
@@ -48,6 +62,20 @@
       <tbody id="tableBody"></tbody>
     </table>
   </div>
+
+  <script>
+    // Activate nav link for current page
+    (function(){
+      try{
+        const path = location.pathname.split('/').pop();
+        const page = path === '' ? 'index.html' : path;
+        document.querySelectorAll('.nav-link').forEach(a=>{
+          const href = a.getAttribute('href');
+          if (href === page || (href === 'index.html' && page === 'index.html')) a.classList.add('active');
+        });
+      }catch(e){/* ignore */}
+    })();
+  </script>
 
   <script>
     // --- CONFIGURATION : remplace ces listes par les 8 montures et les 8 personnages réels ---

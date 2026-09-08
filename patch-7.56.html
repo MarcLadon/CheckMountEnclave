@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Patch 7.56 — Enclave</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 20px; background:#f6f7fb; color:#111; }
+    header.site-nav { display:flex; align-items:center; margin-bottom:16px; }
+    nav.primary { display:flex; gap:8px; }
+    nav.primary a { text-decoration:none; color:#111; padding:8px 12px; border-radius:6px; font-weight:600 }
+    nav.primary a.active { background:#1f9d55; color:#fff; }
+    nav.primary a:hover { background:#eef6f0; }
+    .content { background:#fff; border-radius:8px; padding:16px; }
+  </style>
+</head>
+<body>
+  <header class="site-nav" role="banner">
+    <nav class="primary" aria-label="Navigation principale">
+      <a href="index.html" class="nav-link" data-page="index">Accueil</a>
+      <a href="patch-7.56.html" class="nav-link" data-page="patch-7.56">Patch 7.56</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <h1>Patch 7.56</h1>
+    <p>Page dédiée au patch 7.56 — contenu à ajouter.</p>
+    <p>Retour : <a href="index.html">Accueil</a></p>
+  </main>
+
+  <script>
+    // Activate nav link for current page
+    (function(){
+      try{
+        const path = location.pathname.split('/').pop();
+        const page = path === '' ? 'index.html' : path;
+        document.querySelectorAll('.nav-link').forEach(a=>{
+          const href = a.getAttribute('href');
+          if (href === page || (href === 'patch-7.56.html' && page === 'patch-7.56.html')) a.classList.add('active');
+        });
+      }catch(e){/* ignore */}
+    })();
+  </script>
+</body>
+</html>
