@@ -36,7 +36,6 @@
   <div id="loader"></div>
   <h1>Montures de Défi Dawntrail</h1>
   <div style="margin:8px 0">
-    <button id="startBtn">Lancer recherche</button>
     <span class="muted"></span>
   </div>
 
@@ -102,7 +101,7 @@
       const thead = document.getElementById('tableHead');
       thead.innerHTML = '';
       const tr = document.createElement('tr');
-      tr.innerHTML = '<th></th>' + mounts.map(m=>`<th class="mount-col"><img class="mount-thumb" src="${escapeHtml(m.image||m.image_url||m.icon||'')}" alt="${escapeHtml(m.name||m.title||'')}"><di[...]`).join('')
+      tr.innerHTML = '<th></th>' + mounts.map(m=>`<th class="mount-col"><img class="mount-thumb" src="${escapeHtml(m.image||m.image_url||m.icon||'')}" alt="${escapeHtml(m.name||m.title||'')}"><div class="small">${escapeHtml(m.name||m.title||'')}</div></th>`).join('')
       thead.appendChild(tr);
     }
 
@@ -124,8 +123,8 @@
       return tr;
     }
 
-    // Main flow when user clicks
-    document.getElementById('startBtn').addEventListener('click', async ()=>{
+    // Main flow (extracted into a named function)
+    async function loadMounts(){
       const loader = document.getElementById('loader');
       loader.textContent = 'Chargement des données des montures…';
       const gridHead = document.getElementById('tableHead');
@@ -172,13 +171,11 @@
         loader.innerHTML = `<span class="error">Erreur inattendue: ${escapeHtml(String(err))}</span>`;
         console.error(err);
       }
+    }
 
-      });
-
-    // Auto-start la recherche au chargement de la page (équivalent d'appuyer sur le bouton)
+    // Auto-start la recherche au chargement de la page
     document.addEventListener('DOMContentLoaded', function(){
-      const btn = document.getElementById('startBtn');
-      if (btn) btn.click();
+      loadMounts();
     });
 
   </script>
