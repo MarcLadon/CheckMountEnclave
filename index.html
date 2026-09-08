@@ -32,9 +32,13 @@
   </style>
 </head>
 <body>
+  <h1>Vérification des montures pour plusieurs personnages</h1>
+  <p class="lead"></p>
+  <div id="loader"></div>
   <h1>Montures de Défi Dawntrail</h1>
   <div style="margin:8px 0">
     <button id="startBtn">Lancer la vérification</button>
+    <span class="muted"></span>
   </div>
 
   <div class="table-wrap">
@@ -73,7 +77,7 @@
     function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
     async function fetchMount(idOrSlug){
-      const apiUrl = `https://ffxivcollect.com/api/mounts/${encodeURIComponent(idOrSlug)}?langage=fr`;
+      const apiUrl = `https://ffxivcollect.com/api/mounts/${encodeURIComponent(idOrSlug)}?language=fr`;
       const res = await fetch(apiUrl);
       if (!res.ok) throw new Error(`mount ${idOrSlug} -> HTTP ${res.status}`);
       return await res.json();
