@@ -58,10 +58,10 @@
       "407",
       "422",
       "444",
-      "420" 
+      "420"
     ];
 
-    // Personnages : fournissez au minimum { name, id } où id est utilisable par l'API (ou un slug)
+    // Personnages : fournissez au minimum { name, id } où id est l'identifiant numérique du personnage
     const charactersList = [
       { name: "Ephrael", id: "26350880" },
       { name: "Ladon", id: "26361333" },
@@ -69,13 +69,12 @@
       { name: "Lord", id: "47199330" },
       { name: "Ruuj", id: "26167752" },
       { name: "Seekoya", id: "40801600" },
-      { name: "Seika", id: "40634418" }
+      { name: "Seika", id: "40634418" },
+      { name: "Test", id: "00000000" }
     ];
 
     // --- Helpers ---
     function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
-    function checkResponseOk(res){ if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); }
 
     async function fetchMount(idOrSlug){
       const apiUrl = `https://ffxivcollect.com/api/mounts/${encodeURIComponent(idOrSlug)}`;
@@ -84,35 +83,15 @@
       return await res.json();
     }
 
-    async function fetchCharacter(idOrSlug){
-      // IMPORTANT : ajuster si l'API réelle a un chemin différent ou si CORS bloque.
-      const apiUrl = `https://ffxivcollect.com/api/characters/${encodeURIComponent(idOrSlug)}`;
+    // New: fetch owned mounts for a character using the dedicated endpoint
+    async function fetchCharacterOwnedMountIds(characterId){
+      const apiUrl = `https://ffxivcollect.com/api/characters/${encodeURIComponent(characterId)}/mounts/owned`;
       const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error(`character ${idOrSlug} -> HTTP ${res.status}`);
-      return await res.json();
-    }
-
-    function ownedMountIdsFromCharacterJson(obj){
-      // Essaye de trouver une liste d'IDs/slugs de montures dans la réponse d'un personnage
-      // Explore plusieurs chemins communs
-      if (!obj) return [];
-      const candidates = [];
-      if (Array.isArray(obj.mounts)) candidates.push(...obj.mounts);
-      if (Array.isArray(obj.owned_mounts)) candidates.push(...obj.owned_mounts);
-      if (Array.isArray(obj.mount_ids)) candidates.push(...obj.mount_ids);
-      if (Array.isArray(obj.collection) && obj.collection.length){ // parfois une collection globale
-        obj.collection.forEach(c=>{ if (c.type === 'mount' && Array.isArray(c.items)) candidates.push(...c.items); });
-      }
-      // Parcours clé-values pour trouver tableau contenant monture
-      Object.keys(obj).forEach(k=>{
-        const v = obj[k];
-        if (Array.isArray(v) && v.length && (String(k).toLowerCase().includes('mount') || v.every(x=>typeof x === 'string' || typeof x === 'number'))) {
-          candidates.push(...v);
-        }
-      });
-
-      // Normalise en chaînes et unique
-      return Array.from(new Set(candidates.map(x=>String(x))));
+      if (!res.ok) throw new Error(`owned mounts ${characterId} -> HTTP ${res.status}`);
+      const data = await res.json();
+      // Expecting an array of objects with an `id` field
+      if (!Array.isArray(data)) return [];
+      return data.map(item => String(item.id));
     }
 
     // SVG icons
@@ -138,8 +117,7 @@
       for (const mId of mountsList){
         const td = document.createElement('td');
         td.setAttribute('data-mount', mId);
-        // Compare string forms
-        const has = ownedSet.has(String(mId)) || ownedSet.has(String(parseInt(mId))) || ownedSet.has(String(mId).toLowerCase());
+        const has = ownedSet.has(String(mId));
         td.innerHTML = has ? `${SVG_OK}` : `${SVG_NO}`;
         td.title = has ? 'Possédé' : 'Non possédé';
         tr.appendChild(td);
@@ -163,25 +141,24 @@
         const mounts = mountsResults.map((r, idx)=> r.ok ? r.d : { id: mountsList[idx], name: mountsList[idx], image: '' });
 
         buildHeader(mounts);
-        loader.textContent = 'Vérification des personnages (récupération des collections)...';
+        loader.textContent = 'Vérification des personnages (récupération des collections owned)...';
 
-        // 2) Pour chaque personnage, récupère sa collection et construit la ligne
+        // 2) Pour chaque personnage, affiche placeholder
         for (const ch of charactersList){
           const rowPlaceholder = document.createElement('tr');
           rowPlaceholder.innerHTML = `<td class="character">${escapeHtml(ch.name||ch.id)}</td><td colspan="${mountsList.length}" class="muted">Chargement...</td>`;
           gridBody.appendChild(rowPlaceholder);
         }
 
-        // Fetch all characters in parallel (but we will write rows in order)
-        const characterPromises = charactersList.map(c => fetchCharacter(c.id).then(d=>({ok:true,d,c})).catch(e=>({ok:false,e,c}))); 
+        // Fetch owned mounts for all characters in parallel
+        const characterPromises = charactersList.map(c => fetchCharacterOwnedMountIds(c.id).then(ids=>({ok:true,ids,c})).catch(e=>({ok:false,e,c})));
         const charactersResults = await Promise.all(characterPromises);
 
         // Clear body and append final rows
         gridBody.innerHTML = '';
         for (const res of charactersResults){
           if (res.ok){
-            const owned = ownedMountIdsFromCharacterJson(res.d);
-            const ownedSet = new Set(owned.map(x=>String(x)));
+            const ownedSet = new Set(res.ids.map(x=>String(x)));
             const tr = buildRow(res.c, ownedSet);
             gridBody.appendChild(tr);
           } else {
@@ -201,7 +178,7 @@
       const note = document.createElement('div');
       note.className = 'muted';
       note.style.marginTop = '8px';
-      note.innerHTML = 'Remarque: si les appels `fetch` vers ffxivcollect.com sont bloqués par CORS, exécutez un petit proxy côté serveur et modifiez les URLs de fetch vers `/api/mounts/:id` et `/api/characters/:id`.';
+      note.innerHTML = 'Remarque: les endpoints spécifiques /mounts/owned et /mounts/missing doivent être accessibles depuis le navigateur. Si les appels `fetch` vers ffxivcollect.com sont bloqués par CORS, exécutez un petit proxy côté serveur et modifiez les URLs de fetch vers `/api/characters/:id/mounts/owned` etc.';
       document.body.appendChild(note);
     });
 
