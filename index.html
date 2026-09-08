@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Vérification des montures — FFXIV</title>
+  <title>Vérification des montures — Enclave</title>
   <style>
     body { font-family: system-ui, Arial; padding: 20px; background:#f6f7fb; color:#111; }
     h1 { margin-bottom: 6px; }
@@ -32,12 +32,9 @@
   </style>
 </head>
 <body>
-  <h1>Vérification des montures pour plusieurs personnages</h1>
-  <p class="lead">La grille compare 8 personnages aux 8 montures sélectionnées. Une coche verte signifie que le personnage possède la monture, une croix rouge qu'il ne la possède pas.</p>
-  <div id="loader">Prêt — cliquez sur « Lancer la vérification ».</div>
+  <h1>Montures de Défi Dawntrail</h1>
   <div style="margin:8px 0">
     <button id="startBtn">Lancer la vérification</button>
-    <span class="muted">(Remplacez les tableaux mountsList et charactersList dans le script par vos valeurs réelles.)</span>
   </div>
 
   <div class="table-wrap">
@@ -69,15 +66,14 @@
       { name: "Lord", id: "47199330" },
       { name: "Ruuj", id: "26167752" },
       { name: "Seekoya", id: "40801600" },
-      { name: "Seika", id: "40634418" },
-      { name: "Test", id: "00000000" }
+      { name: "Seika", id: "40634418" }
     ];
 
     // --- Helpers ---
     function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
     async function fetchMount(idOrSlug){
-      const apiUrl = `https://ffxivcollect.com/api/mounts/${encodeURIComponent(idOrSlug)}`;
+      const apiUrl = `https://ffxivcollect.com/api/mounts/${encodeURIComponent(idOrSlug)}?langage=fr`;
       const res = await fetch(apiUrl);
       if (!res.ok) throw new Error(`mount ${idOrSlug} -> HTTP ${res.status}`);
       return await res.json();
@@ -103,7 +99,7 @@
       const thead = document.getElementById('tableHead');
       thead.innerHTML = '';
       const tr = document.createElement('tr');
-      tr.innerHTML = '<th>Personnage</th>' + mounts.map(m=>`<th class="mount-col"><img class="mount-thumb" src="${escapeHtml(m.image||m.image_url||m.icon||'')}" alt="${escapeHtml(m.name||m.title||'')}"><div class="small">${escapeHtml(m.name||m.title||m.slug||m.id||'')}</div></th>`).join('');
+      tr.innerHTML = '<th></th>' + mounts.map(m=>`<th class="mount-col"><img class="mount-thumb" src="${escapeHtml(m.image||m.image_url||m.icon||'')}" alt="${escapeHtml(m.name||m.title||'')}"><div class="small">${escapeHtml(m.name||m.title||m.slug||m.id||'')}</div></th>`).join('');
       thead.appendChild(tr);
     }
 
@@ -174,13 +170,7 @@
         console.error(err);
       }
 
-      // Note sur le CORS
-      const note = document.createElement('div');
-      note.className = 'muted';
-      note.style.marginTop = '8px';
-      note.innerHTML = 'Remarque: les endpoints spécifiques /mounts/owned et /mounts/missing doivent être accessibles depuis le navigateur. Si les appels `fetch` vers ffxivcollect.com sont bloqués par CORS, exécutez un petit proxy côté serveur et modifiez les URLs de fetch vers `/api/characters/:id/mounts/owned` etc.';
-      document.body.appendChild(note);
-    });
+      });
 
   </script>
 </body>
